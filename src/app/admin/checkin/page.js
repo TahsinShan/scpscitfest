@@ -10,16 +10,13 @@ const QrReader = dynamic(
 );
 
 export default function CheckIn() {
-  // Preset admin credentials
   const PRESET_USER = "admin";
   const PRESET_PASS = "itfest2026";
 
-  // Login state
   const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  // Check-in state
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("");
   const [participant, setParticipant] = useState(null);
@@ -27,17 +24,20 @@ export default function CheckIn() {
   const [scanning, setScanning] = useState(false);
   const [hasCamera, setHasCamera] = useState(false);
 
-  // On load, detect camera
+  // ===== Camera detection =====
   useEffect(() => {
-    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-      navigator.mediaDevices.enumerateDevices().then((devices) => {
-        const videoInput = devices.some((d) => d.kind === "videoinput");
-        setHasCamera(videoInput);
-      });
-    }
+    const checkCamera = async () => {
+      try {
+        // Request camera access
+        await navigator.mediaDevices.getUserMedia({ video: true });
+        setHasCamera(true);
+      } catch (err) {
+        setHasCamera(false);
+      }
+    };
+    checkCamera();
   }, []);
 
-  // Fetch check-in count
   const fetchCount = async () => {
     try {
       const res = await fetch("/api/admin/count");
@@ -49,11 +49,12 @@ export default function CheckIn() {
   };
 
   const playSound = (type) => {
-    const audio = new Audio(type === "success" ? "/sounds/success.mp3" : "/sounds/error.mp3");
+    const audio = new Audio(
+      type === "success" ? "/sounds/success.mp3" : "/sounds/error.mp3"
+    );
     audio.play();
   };
 
-  // Preset login check
   const login = () => {
     if (username === PRESET_USER && password === PRESET_PASS) {
       setLoggedIn(true);
@@ -84,7 +85,7 @@ export default function CheckIn() {
         setTimeout(() => {
           setStatus("");
           setParticipant(null);
-        }, 2500);
+        }, 4000);
       } else {
         setStatus("❌ " + data.message);
         setParticipant(data.participant || null);
@@ -115,7 +116,7 @@ export default function CheckIn() {
     setScanning(false);
   };
 
-  // ===== Login prompt =====
+  // ===== Login page =====
   if (!loggedIn) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 to-black text-white px-6">
@@ -178,7 +179,7 @@ export default function CheckIn() {
               />
             ) : (
               <p className="text-red-400 text-center p-4">
-                No camera detected on this device.
+                No camera detected or permission denied.
               </p>
             )}
           </div>
@@ -195,11 +196,18 @@ export default function CheckIn() {
       {status && <p className="text-2xl font-bold mb-4">{status}</p>}
 
       {participant && (
-        <div className="bg-gray-900 p-6 rounded-lg border border-gray-700 text-center w-full max-w-md">
+        <div className="bg-gray-900 p-6 rounded-lg border border-gray-700 text-left w-full max-w-md space-y-2">
+          <p><b>Ticket ID:</b> {participant.ticket_id}</p>
           <p><b>Name:</b> {participant.name}</p>
           <p><b>School:</b> {participant.school}</p>
+          <p><b>Class:</b> {participant.class_category || "-"}</p>
           <p><b>Phone:</b> {participant.phone}</p>
-          <p><b>Events:</b> {participant.events.join(", ")}</p>
+          <p><b>Events:</b> {Array.isArray(participant.events) ? participant.events.join(", ") : participant.events || "-"}</p>
+          <p><b>T-Shirt Size:</b> {participant.tshirt_size || "-"}</p>
+          <p><b>Payment Status:</b> {participant.payment_status || "-"}</p>
+          <p className={`font-semibold ${participant.checked_in ? "text-green-400" : "text-red-400"}`}>
+            {participant.checked_in ? "✅ Checked In" : "❌ Not Checked In"}
+          </p>
         </div>
       )}
     </main>

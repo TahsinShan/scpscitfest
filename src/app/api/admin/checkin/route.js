@@ -11,9 +11,20 @@ export async function POST(req) {
   }
 
   try {
+    // Select all fields we need
     let query = supabase
       .from("participants")
-      .select("name, school, events, phone, ticket_id, checked_in");
+      .select(`
+        ticket_id,
+        name,
+        school,
+        class_category,
+        phone,
+        events,
+        tshirt_size,
+        payment_status,
+        checked_in
+      `);
 
     if (ticket_id) {
       query = query.eq("ticket_id", ticket_id);
@@ -41,15 +52,24 @@ export async function POST(req) {
       );
     }
 
-    await supabase
+    // Update checked_in status
+    const { error: updateError } = await supabase
       .from("participants")
       .update({ checked_in: true })
       .eq("ticket_id", data.ticket_id);
 
+    if (updateError) {
+      return new Response(
+        JSON.stringify({ success: false, message: "Failed to update check-in" }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Return updated participant
     return new Response(
       JSON.stringify({
         success: true,
-        participant: data,
+        participant: { ...data, checked_in: true },
       }),
       { headers: { "Content-Type": "application/json" } }
     );
